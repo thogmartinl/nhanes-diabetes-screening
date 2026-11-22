@@ -155,3 +155,31 @@ def grouped_permutation_importance(model, X, y, groups=FEATURE_GROUPS, n_repeats
         rows.append({"Feature group": name, "Mean drop in ROC-AUC": float(np.mean(drops)),
                      "SD": float(np.std(drops))})
     return pd.DataFrame(rows).set_index("Feature group")
+
+
+def cv_auc_by_feature_set(make_model, params, X, y, feature_sets, reference, random_state):
+    """Cross-validated ROC-AUC on the training set for different sets of input features.
+
+    make_model: make_random_forest or make_neural_network. params: the tuned settings.
+    feature_sets: dict label -> list of columns. reference: label to compare against.
+    All feature sets use the same 5 folds, so the differences are paired by fold.
+    """
+    from sklearn.model_selection import cross_val_score
+    from .preprocessing import CATEGORICAL
+
+    cv = StratifiedKFold(n_splits=5, shuffle=True, random_state=random_state)
+    fold_scores = {}
+    for label, columns in feature_sets.items():
+        categorical = [c for c in columns if c in CATEGORICAL]
+        numeric = [c for c in columns if c not in CATEGORICAL]
+        model = make_model(numeric, random_state, categorical_columns=categorical).set_params(**params)
+        fold_scores[label] = cross_val_score(model, X[columns], y, cv=cv, scoring="roc_auc")
+
+    rows = []
+    for label, scores in fold_scores.items():
+        diff = scores - fold_scores[reference]
+        rows.append({"Feature set": label, "Features": len(feature_sets[label]),
+                     "CV ROC-AUC": round(scores.mean(), 3), "SD": round(scores.std(), 3),
+                     f"Difference vs. {reference}": round(diff.mean(), 3),
+                     "SD of difference": round(diff.std(), 3)})
+    return pd.DataFrame(rows).set_index("Feature set")
