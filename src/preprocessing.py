@@ -38,8 +38,8 @@ def select_screening_sample(data):
 # Variables not listed here (e.g. age, BMI, blood pressure, sleep hours) have no such codes.
 MISSING_CODES = {
     "BPQ020": [7, 9],                                   # told high blood pressure
-    "MCQ160b": [7, 9], "MCQ160c": [7, 9], "MCQ160d": [7, 9],
-    "MCQ160e": [7, 9], "MCQ160f": [7, 9],               # cardiovascular conditions
+    "MCQ160B": [7, 9], "MCQ160C": [7, 9], "MCQ160D": [7, 9],
+    "MCQ160E": [7, 9], "MCQ160F": [7, 9],               # cardiovascular conditions
     "SMQ020": [7, 9], "SMQ040": [7, 9],                 # smoking
     "PAD790Q": [7777, 9999], "PAD800": [7777, 9999],    # moderate activity
     "PAD810Q": [7777, 9999], "PAD820": [7777, 9999],    # vigorous activity
