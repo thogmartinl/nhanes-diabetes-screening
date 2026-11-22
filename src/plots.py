@@ -212,7 +212,6 @@ def plot_body_measures(X, elevated):
     return fig
 
 
-
 def plot_roc_pr(y, scores, operating_points):
     """ROC and precision-recall curves for each approach, with its screening threshold marked.
 
@@ -251,6 +250,36 @@ def plot_roc_pr(y, scores, operating_points):
         ax.grid(True, axis="both")
         ax.legend(loc="lower right" if ax is ax_roc else "upper right", fontsize=8.5)
     fig.suptitle("Discrimination on the test set  ·  dots mark the screening thresholds from Table S",
+                 x=0.01, ha="left", fontweight="bold", fontsize=12)
+    fig.tight_layout()
+    return fig
+
+
+
+def plot_calibration(y, probabilities, n_bins=10):
+    """Calibration curves (left) and the distribution of predicted risk (right)."""
+    from sklearn.calibration import calibration_curve
+
+    y = np.asarray(y)
+    fig, (ax_cal, ax_hist) = plt.subplots(1, 2, figsize=(10.5, 4.6),
+                                          gridspec_kw={"width_ratios": [1.15, 1]})
+    ax_cal.plot([0, 1], [0, 1], color=MUTED, linestyle="--", linewidth=1, label="Perfect calibration")
+    bins = np.linspace(0, 1, 21)
+    for (name, p), color in zip(probabilities.items(), [BLUE, ORANGE]):
+        observed, predicted = calibration_curve(y, p, n_bins=n_bins, strategy="quantile")
+        ax_cal.plot(predicted, observed, "-o", color=color, markersize=6,
+                    markeredgecolor="white", markeredgewidth=1.2, label=name)
+        ax_hist.hist(p, bins=bins, histtype="step", linewidth=2, color=color, label=name)
+
+    ax_cal.set(xlabel="Mean predicted risk (10 groups of equal size)",
+               ylabel="Observed share with elevated HbA1c", xlim=(0, 1), ylim=(0, 1))
+    ax_cal.grid(True, axis="both")
+    ax_cal.set_title("Calibration curve", fontsize=11)
+    ax_cal.legend(loc="upper left", fontsize=9)
+    ax_hist.set(xlabel="Predicted risk", ylabel="Participants", xlim=(0, 1))
+    ax_hist.set_title("Distribution of predicted risk", fontsize=11)
+    ax_hist.legend(loc="upper right", fontsize=9)
+    fig.suptitle("Calibration of the predicted risk on the test set",
                  x=0.01, ha="left", fontweight="bold", fontsize=12)
     fig.tight_layout()
     return fig
