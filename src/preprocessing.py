@@ -60,3 +60,32 @@ def recode_missing(df):
     for col, codes in MISSING_CODES.items():
         df[col] = df[col].where(~df[col].isin(codes))
     return df
+
+
+def resolve_skip_patterns(df):
+    """Fill blanks that NHANES created on purpose through skip patterns.
+
+    - Smoking: combine SMQ020 (100+ cigarettes in life) and SMQ040 (smoke now)
+      into one variable: never / former / current.
+    - Alcohol: participants who never drank (ALQ111 = 2) skipped ALQ121, so their
+      frequency is 0. Participants with no drinks in the past year (ALQ121 = 0)
+      skipped ALQ130, so their drinks per drinking day are 0.
+    - Physical activity: participants with a frequency of 0 skipped the minutes
+      question, so their minutes are 0.
+    """
+    df = df.copy()
+
+    # Smoking status (stays missing if SMQ020 is refused, don't know, or blank)
+    df["smoking_status"] = pd.Series(index=df.index, dtype="object")
+    df.loc[df["SMQ020"] == 2, "smoking_status"] = "never"
+    df.loc[(df["SMQ020"] == 1) & (df["SMQ040"] == 3), "smoking_status"] = "former"
+    df.loc[(df["SMQ020"] == 1) & df["SMQ040"].isin([1, 2]), "smoking_status"] = "current"
+
+    # Alcohol
+    df.loc[df["ALQ111"] == 2, "ALQ121"] = 0
+    df.loc[df["ALQ121"] == 0, "ALQ130"] = 0
+
+    # Physical activity
+    df.loc[df["PAD790Q"] == 0, "PAD800"] = 0
+    df.loc[df["PAD810Q"] == 0, "PAD820"] = 0
+    return df
