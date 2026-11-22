@@ -210,3 +210,47 @@ def plot_body_measures(X, elevated):
                  x=0.01, ha="left", fontweight="bold", fontsize=12)
     fig.tight_layout()
     return fig
+
+
+
+def plot_roc_pr(y, scores, operating_points):
+    """ROC and precision-recall curves for each approach, with its screening threshold marked.
+
+    scores: dict name -> predicted risk on the test set (at most three approaches).
+    operating_points: dict name -> threshold used in the screening table.
+    """
+    from sklearn.metrics import average_precision_score, precision_recall_curve, roc_auc_score, roc_curve
+
+    y = np.asarray(y)
+    fig, (ax_roc, ax_pr) = plt.subplots(1, 2, figsize=(10.5, 4.8))
+    for (name, s), color in zip(scores.items(), [BLUE, ORANGE, AQUA]):
+        s = np.asarray(s)
+        fpr, tpr, _ = roc_curve(y, s)
+        precision, recall, _ = precision_recall_curve(y, s)
+        ax_roc.plot(fpr, tpr, color=color, label=f"{name} (ROC-AUC {roc_auc_score(y, s):.3f})")
+        ax_pr.plot(recall, precision, color=color, label=f"{name} (PR-AUC {average_precision_score(y, s):.3f})")
+
+        # Mark the screening threshold from the screening table
+        flagged = s >= operating_points[name]
+        sens = (flagged & (y == 1)).sum() / (y == 1).sum()
+        spec = (~flagged & (y == 0)).sum() / (y == 0).sum()
+        prec = (flagged & (y == 1)).sum() / flagged.sum()
+        for ax, x, yy in [(ax_roc, 1 - spec, sens), (ax_pr, sens, prec)]:
+            ax.plot(x, yy, "o", markersize=8, color=color, markeredgecolor="white",
+                    markeredgewidth=1.5, zorder=5)
+
+    ax_roc.plot([0, 1], [0, 1], color=MUTED, linestyle="--", linewidth=1, label="Chance")
+    ax_pr.axhline(y.mean(), color=MUTED, linestyle="--", linewidth=1,
+                  label=f"Chance (share elevated = {y.mean():.3f})")
+    ax_roc.set(xlabel="1 − specificity (false positive rate)", ylabel="Sensitivity (true positive rate)",
+               xlim=(0, 1), ylim=(0, 1.01))
+    ax_pr.set(xlabel="Recall (sensitivity)", ylabel="Precision (PPV)", xlim=(0, 1), ylim=(0, 1.01))
+    ax_roc.set_title("ROC curve", fontsize=11)
+    ax_pr.set_title("Precision-recall curve", fontsize=11)
+    for ax in (ax_roc, ax_pr):
+        ax.grid(True, axis="both")
+        ax.legend(loc="lower right" if ax is ax_roc else "upper right", fontsize=8.5)
+    fig.suptitle("Discrimination on the test set  ·  dots mark the screening thresholds from Table S",
+                 x=0.01, ha="left", fontweight="bold", fontsize=12)
+    fig.tight_layout()
+    return fig
