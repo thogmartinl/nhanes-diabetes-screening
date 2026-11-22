@@ -29,3 +29,34 @@ def select_screening_sample(data):
 
     screening = data[keep].copy()
     return screening, pd.DataFrame(flow, columns=["Step", "Participants"])
+
+
+
+
+# Refused / don't know codes for each raw variable used to build features.
+# Taken from the NHANES August 2021-August 2023 codebooks.
+# Variables not listed here (e.g. age, BMI, blood pressure, sleep hours) have no such codes.
+MISSING_CODES = {
+    "BPQ020": [7, 9],                                   # told high blood pressure
+    "MCQ160b": [7, 9], "MCQ160c": [7, 9], "MCQ160d": [7, 9],
+    "MCQ160e": [7, 9], "MCQ160f": [7, 9],               # cardiovascular conditions
+    "SMQ020": [7, 9], "SMQ040": [7, 9],                 # smoking
+    "PAD790Q": [7777, 9999], "PAD800": [7777, 9999],    # moderate activity
+    "PAD810Q": [7777, 9999], "PAD820": [7777, 9999],    # vigorous activity
+    "ALQ111": [7, 9], "ALQ121": [77, 99], "ALQ130": [777, 999],  # alcohol
+    **{f"DPQ0{i}0": [7, 9] for i in range(1, 10)},     # PHQ-9 items DPQ010-DPQ090
+    "HIQ011": [7, 9],                                   # health insurance
+    "HUQ010": [7, 9],                                   # self-rated health
+}
+
+
+def recode_missing(df):
+    """Replace each variable's refused / don't know codes with missing values."""
+    not_found = [col for col in MISSING_CODES if col not in df.columns]
+    if not_found:
+        raise KeyError(f"Columns not found in the data: {not_found}")
+
+    df = df.copy()
+    for col, codes in MISSING_CODES.items():
+        df[col] = df[col].where(~df[col].isin(codes))
+    return df
