@@ -4,6 +4,7 @@ from pathlib import Path
 
 import matplotlib.pyplot as plt
 import numpy as np
+import pandas as pd
 
 # Colorblind-safe palette (validated): blue, orange, aqua
 BLUE, ORANGE, AQUA = "#2a78d6", "#eb6834", "#1baf7a"
@@ -68,4 +69,41 @@ def plot_hba1c_distribution(hba1c, prediabetes=5.7, diabetes=6.5, upper=9.0):
     ax.set_title("HbA1c in the training set", pad=22)
     ax.set_xlabel(f"HbA1c (%)   ·   values above {upper}% are shown in the last bar")
     ax.set_ylabel("Participants")
+    return fig
+
+
+
+def plot_elevated_by_group(age, bmi, elevated):
+    """Share of participants with elevated HbA1c by age group and by BMI group."""
+    age_groups = pd.cut(age, [18, 30, 40, 50, 60, 70, np.inf], right=False,
+                        labels=["18–29", "30–39", "40–49", "50–59", "60–69", "70+"])
+    bmi_groups = pd.cut(bmi, [0, 18.5, 25, 30, 35, 40, np.inf], right=False,
+                        labels=["<18.5", "18.5–24.9", "25–29.9", "30–34.9", "35–39.9", "40+"])
+    overall = elevated.mean() * 100
+
+    fig, axes = plt.subplots(1, 2, figsize=(10, 4.2), sharey=True)
+    for ax, groups, title, xlabel in [(axes[0], age_groups, "By age", "Age (years)"),
+                                      (axes[1], bmi_groups, "By BMI", "BMI (kg/m²)")]:
+        stats = elevated.groupby(groups, observed=False).agg(["mean", "size"])
+        share = stats["mean"] * 100
+        x = np.arange(len(stats))
+        ax.bar(x, share, color=ORANGE, width=0.7, zorder=3)   # bars in front of the line
+        for xi, value in zip(x, share):
+            # Label inside the top of the bar (white), or above it if the bar is too short
+            inside = value >= 8
+            ax.text(xi, value - 1.2 if inside else value + 1.2, f"{value:.0f}%", ha="center",
+                    va="top" if inside else "bottom", fontsize=9,
+                    color="white" if inside else INK_2, fontweight="bold" if inside else "normal",
+                    zorder=4)
+        ax.axhline(overall, color=INK_2, linestyle="--", linewidth=1,
+                   label=f"All participants: {overall:.0f}%")
+        ax.set_xticks(x, [f"{g}\n(n = {n:,})" for g, n in zip(stats.index, stats["size"])],
+                      fontsize=8.5)
+        ax.set_title(title, fontsize=11)
+        ax.set_xlabel(xlabel)
+    axes[0].set_ylabel("Participants with elevated HbA1c (%)")
+    axes[0].legend(loc="upper left", fontsize=9)
+    fig.suptitle("Elevated HbA1c (≥ 5.7%) by age and BMI, training set",
+                 x=0.01, ha="left", fontweight="bold", fontsize=12)
+    fig.tight_layout()
     return fig
