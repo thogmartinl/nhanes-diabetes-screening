@@ -81,3 +81,34 @@ def screening_metrics(y, scores, threshold):
         "Flagged (%)": round(float(flagged.mean()) * 100, 1),
         "Found / missed": f"{tp} / {fn}",
     }
+
+
+
+def calibration_summary(y, probabilities, reference_rate):
+    """Brier score, Brier skill score, calibration-in-the-large and calibration slope.
+
+    reference_rate: share of elevated HbA1c in the training set. Predicting this
+    rate for everyone is the reference that the Brier skill score compares against.
+    """
+    from sklearn.linear_model import LogisticRegression
+    from sklearn.metrics import brier_score_loss
+
+    y = np.asarray(y)
+    reference = float(np.mean((y - reference_rate) ** 2))
+    rows = []
+    for name, p in probabilities.items():
+        p = np.clip(np.asarray(p), 1e-6, 1 - 1e-6)
+        logit = np.log(p / (1 - p)).reshape(-1, 1)
+        slope = LogisticRegression(C=1e6).fit(logit, y).coef_[0, 0]   # 1 = ideal
+        brier = brier_score_loss(y, p)
+        rows.append({"Model": name, "Brier score": round(brier, 3),
+                     "Brier skill score": round(1 - brier / reference, 3),
+                     "Mean predicted risk": round(float(p.mean()), 3),
+                     "Observed rate": round(float(y.mean()), 3),
+                     "Calibration slope": round(float(slope), 2)})
+    rows.append({"Model": f"Reference (predict {reference_rate:.3f} for everyone)",
+                 "Brier score": round(reference, 3), "Brier skill score": 0.0,
+                 "Mean predicted risk": round(reference_rate, 3),
+                 "Observed rate": round(float(y.mean()), 3), "Calibration slope": None})
+    return pd.DataFrame(rows).set_index("Model")
+
