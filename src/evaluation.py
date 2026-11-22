@@ -2,7 +2,8 @@
 
 import numpy as np
 import pandas as pd
-from sklearn.metrics import average_precision_score, roc_auc_score
+from sklearn.metrics import average_precision_score, roc_auc_score, roc_curve
+from sklearn.model_selection import StratifiedKFold, cross_val_predict
 
 
 def bootstrap_discrimination(y, scores, reference, n_boot=1000, random_state=42):
@@ -46,3 +47,37 @@ def bootstrap_discrimination(y, scores, reference, n_boot=1000, random_state=42)
             row[f"ROC-AUC difference vs. {reference} (95% CI)"] = "reference"
         rows.append(row)
     return pd.DataFrame(rows).set_index("Model")
+
+
+
+def oof_predictions(model, X, y, random_state):
+    """Out-of-fold predicted risk on the training set (each participant predicted by a model
+    that did not see them), using the same 5 folds as tuning."""
+    cv = StratifiedKFold(n_splits=5, shuffle=True, random_state=random_state)
+    return cross_val_predict(model, X, y, cv=cv, method="predict_proba")[:, 1]
+
+
+def threshold_for_sensitivity(y, scores, target=0.80):
+    """Highest threshold whose sensitivity reaches the target (fewest people flagged)."""
+    fpr, tpr, thresholds = roc_curve(y, scores)
+    return thresholds[np.argmax(tpr >= target)]
+
+
+def screening_metrics(y, scores, threshold):
+    """Screening performance when everyone with a score at or above the threshold is flagged."""
+    y = np.asarray(y)
+    flagged = np.asarray(scores) >= threshold
+    tp = int((flagged & (y == 1)).sum())
+    fn = int((~flagged & (y == 1)).sum())
+    fp = int((flagged & (y == 0)).sum())
+    tn = int((~flagged & (y == 0)).sum())
+    return {
+        "Threshold": round(float(threshold), 3),
+        "Sensitivity": round(tp / (tp + fn), 3),
+        "Specificity": round(tn / (tn + fp), 3),
+        "Precision (PPV)": round(tp / (tp + fp), 3),
+        "NPV": round(tn / (tn + fn), 3),
+        "Accuracy": round((tp + tn) / len(y), 3),
+        "Flagged (%)": round(float(flagged.mean()) * 100, 1),
+        "Found / missed": f"{tp} / {fn}",
+    }
