@@ -1,6 +1,10 @@
 """Prepare the merged NHANES table for modeling."""
 
 import pandas as pd
+from sklearn.compose import ColumnTransformer
+from sklearn.impute import SimpleImputer
+from sklearn.pipeline import Pipeline
+from sklearn.preprocessing import OneHotEncoder, StandardScaler
 
 
 def select_screening_sample(data):
@@ -89,3 +93,37 @@ def resolve_skip_patterns(df):
     df.loc[df["PAD790Q"] == 0, "PAD800"] = 0
     df.loc[df["PAD810Q"] == 0, "PAD820"] = 0
     return df
+
+
+
+CATEGORICAL = ["race_ethnicity", "smoking_status"]
+
+
+def add_missing_indicators(X):
+    """Add 1/0 columns that flag missing values in the four informative groups."""
+    X = X.copy()
+    X["income_missing"] = X["income_ratio"].isna().astype(int)
+    X["alcohol_phq9_missing"] = (X["alcohol_freq"].isna() | X["phq9"].isna()).astype(int)
+    X["bp_missing"] = X["systolic_bp"].isna().astype(int)
+    X["cvd_missing"] = X["cvd"].isna().astype(int)
+    return X
+
+
+def make_preprocessor(numeric_columns, scale=False):
+    """Impute missing values and one-hot encode the categorical features.
+
+    Numeric features: median of the training data (optionally standardized,
+    for the neural network). Categorical features: most frequent value, then
+    one-hot encoding. Everything is fitted on training data only.
+    """
+    numeric_steps = [("impute", SimpleImputer(strategy="median"))]
+    if scale:
+        numeric_steps.append(("scale", StandardScaler()))
+    categorical = Pipeline([
+        ("impute", SimpleImputer(strategy="most_frequent")),
+        ("onehot", OneHotEncoder(handle_unknown="ignore", sparse_output=False)),
+    ])
+    return ColumnTransformer([
+        ("num", Pipeline(numeric_steps), numeric_columns),
+        ("cat", categorical, CATEGORICAL),
+    ])
