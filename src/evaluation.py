@@ -112,3 +112,46 @@ def calibration_summary(y, probabilities, reference_rate):
                  "Observed rate": round(float(y.mean()), 3), "Calibration slope": None})
     return pd.DataFrame(rows).set_index("Model")
 
+
+
+# Features grouped by what they measure; a missing indicator goes with its feature
+FEATURE_GROUPS = {
+    "Age": ["age"],
+    "Body size (BMI, waist, waist-to-height)": ["bmi", "waist", "waist_height_ratio"],
+    "Blood pressure": ["systolic_bp", "diastolic_bp", "told_high_bp", "bp_missing"],
+    "Cardiovascular disease": ["cvd", "cvd_missing"],
+    "Sex": ["female"],
+    "Race/ethnicity": ["race_ethnicity"],
+    "Income-to-poverty ratio": ["income_ratio", "income_missing"],
+    "Health insurance": ["insured"],
+    "Smoking": ["smoking_status"],
+    "Physical activity": ["activity_log"],
+    "Alcohol": ["alcohol_freq", "alcohol_drinks"],
+    "Sleep": ["sleep_hours"],
+    "Depression (PHQ-9)": ["phq9"],
+    "Self-rated health": ["health_rating"],
+    "Alcohol/PHQ-9 not answered": ["alcohol_phq9_missing"],
+}
+
+
+def grouped_permutation_importance(model, X, y, groups=FEATURE_GROUPS, n_repeats=20,
+                                   random_state=42):
+    """Drop in ROC-AUC when the columns of one feature group are shuffled together.
+
+    Shuffling a whole group at once (e.g. BMI, waist and waist-to-height ratio) avoids
+    underestimating features that are strongly correlated with each other.
+    """
+    y = np.asarray(y)
+    rng = np.random.default_rng(random_state)
+    baseline = roc_auc_score(y, model.predict_proba(X)[:, 1])
+    rows = []
+    for name, columns in groups.items():
+        drops = []
+        for _ in range(n_repeats):
+            shuffled = X.copy()
+            order = rng.permutation(len(X))
+            shuffled[columns] = X[columns].iloc[order].to_numpy()
+            drops.append(baseline - roc_auc_score(y, model.predict_proba(shuffled)[:, 1]))
+        rows.append({"Feature group": name, "Mean drop in ROC-AUC": float(np.mean(drops)),
+                     "SD": float(np.std(drops))})
+    return pd.DataFrame(rows).set_index("Feature group")
