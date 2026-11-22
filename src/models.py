@@ -9,7 +9,7 @@ from sklearn.model_selection import GridSearchCV, StratifiedKFold
 from sklearn.neural_network import MLPClassifier
 from sklearn.pipeline import Pipeline
 
-from .preprocessing import make_preprocessor
+from .preprocessing import CATEGORICAL, make_preprocessor
 
 # Random forest settings tried during tuning (3 x 4 x 3 = 36 combinations)
 RF_PARAM_GRID = {
@@ -28,22 +28,22 @@ NN_PARAM_GRID = {
 }
 
 
-def make_random_forest(numeric_columns, random_state):
+def make_random_forest(numeric_columns, random_state, categorical_columns=CATEGORICAL):
     """Imputation + one-hot encoding, followed by a random forest (no scaling needed)."""
     return Pipeline([
-        ("prep", make_preprocessor(numeric_columns, scale=False)),
+        ("prep", make_preprocessor(numeric_columns, scale=False, categorical_columns=categorical_columns)),
         ("model", RandomForestClassifier(n_estimators=300, random_state=random_state, n_jobs=-1)),
     ])
 
 
-def make_neural_network(numeric_columns, random_state):
+def make_neural_network(numeric_columns, random_state, categorical_columns=CATEGORICAL):
     """Imputation + one-hot encoding + standardization, followed by a feed-forward neural network.
 
     ReLU hidden layers and the Adam optimizer. Early stopping holds back 10% of the
     training data and stops when the validation score has not improved for 20 epochs.
     """
     return Pipeline([
-        ("prep", make_preprocessor(numeric_columns, scale=True)),
+        ("prep", make_preprocessor(numeric_columns, scale=True, categorical_columns=categorical_columns)),
         ("model", MLPClassifier(activation="relu", solver="adam", early_stopping=True,
                                 validation_fraction=0.1, n_iter_no_change=20, max_iter=500,
                                 random_state=random_state)),
