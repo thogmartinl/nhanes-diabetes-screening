@@ -183,3 +183,23 @@ def cv_auc_by_feature_set(make_model, params, X, y, feature_sets, reference, ran
                      f"Difference vs. {reference}": round(diff.mean(), 3),
                      "SD of difference": round(diff.std(), 3)})
     return pd.DataFrame(rows).set_index("Feature set")
+
+
+def subgroup_performance(y, scores, thresholds, subgroups):
+    """ROC-AUC and sensitivity at the screening threshold within each subgroup.
+
+    subgroups: dict label -> boolean mask over the test set.
+    thresholds: dict name -> screening threshold (same keys as scores).
+    """
+    y = np.asarray(y)
+    rows = []
+    for label, mask in subgroups.items():
+        mask = np.asarray(mask)
+        row = {"Subgroup": label, "n": int(mask.sum()),
+               "Elevated (%)": round(float(y[mask].mean()) * 100, 1)}
+        for name, s in scores.items():
+            s = np.asarray(s)[mask]
+            row[f"{name} ROC-AUC"] = round(roc_auc_score(y[mask], s), 3)
+            row[f"{name} sensitivity"] = round(float((s[y[mask] == 1] >= thresholds[name]).mean()), 3)
+        rows.append(row)
+    return pd.DataFrame(rows).set_index("Subgroup")
