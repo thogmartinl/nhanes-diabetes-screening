@@ -182,3 +182,31 @@ def plot_activity_transform(activity_log):
                  " training set", x=0.01, ha="left", fontweight="bold", fontsize=12)
     fig.tight_layout()
     return fig
+
+
+
+def plot_body_measures(X, elevated):
+    """BMI, waist and waist-to-height ratio by HbA1c group, with each measure's AUC on its own."""
+    from sklearn.metrics import roc_auc_score
+
+    measures = [("bmi", "BMI (kg/m²)"), ("waist", "Waist circumference (cm)"),
+                ("waist_height_ratio", "Waist-to-height ratio")]
+    fig, axes = plt.subplots(1, 3, figsize=(11, 4.2))
+    for ax, (col, label) in zip(axes, measures):
+        present = X[col].notna()
+        values, target = X.loc[present, col], elevated[present]
+        auc = roc_auc_score(target, values)
+        box = ax.boxplot([values[target == 0], values[target == 1]], patch_artist=True,
+                         widths=0.55, medianprops=dict(color="white", linewidth=2),
+                         whiskerprops=dict(color=AXIS), capprops=dict(color=AXIS),
+                         flierprops=dict(marker="o", markersize=2, markerfacecolor=MUTED,
+                                         markeredgecolor="none", alpha=0.6))
+        for patch, color in zip(box["boxes"], [BLUE, ORANGE]):
+            patch.set_facecolor(color)
+            patch.set_edgecolor(color)
+        ax.set_xticks([1, 2], ["Normal\n(< 5.7%)", "Elevated\n(≥ 5.7%)"])
+        ax.set_title(f"{label}\nAUC on its own: {auc:.2f}", fontsize=10.5)
+    fig.suptitle("Body measures by HbA1c group, training set",
+                 x=0.01, ha="left", fontweight="bold", fontsize=12)
+    fig.tight_layout()
+    return fig
