@@ -4,6 +4,9 @@ import time
 import urllib.request
 from pathlib import Path
 
+from functools import reduce
+import pandas as pd
+
 BASE_URL = "https://wwwn.cdc.gov/Nchs/Data/Nhanes/Public/2021/DataFiles/"
 
 # The 25 files used in this project, grouped by NHANES component
@@ -48,3 +51,32 @@ def download_all(data_dir="data"):
             if status.startswith("downloaded"):
                 time.sleep(0.5)  # short pause between requests to the CDC server
     return data_dir
+
+
+
+def load_all(data_dir):
+    """Read every project file into a dictionary of DataFrames, keyed by file name."""
+    data_dir = Path(data_dir)
+    tables = {}
+    for names in NHANES_FILES.values():
+        for name in names:
+            df = pd.read_sas(data_dir / f"{name}.xpt", format="xport")
+            if not df["SEQN"].is_unique:
+                raise ValueError(f"{name} has more than one row per participant")
+            tables[name] = df
+    return tables
+
+
+def merge_on_seqn(tables):
+    """Left-join all files onto DEMO_L by SEQN.
+
+    Columns that already exist in the merged table (such as the survey
+    weights repeated in several lab files) are not added again.
+    """
+    def add_new_columns(left, name):
+        right = tables[name]
+        new_cols = ["SEQN"] + [c for c in right.columns if c not in left.columns]
+        return left.merge(right[new_cols], on="SEQN", how="left")
+
+    others = [name for name in tables if name != "DEMO_L"]
+    return reduce(add_new_columns, others, tables["DEMO_L"])
