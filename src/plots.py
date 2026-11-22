@@ -283,3 +283,28 @@ def plot_calibration(y, probabilities, n_bins=10):
                  x=0.01, ha="left", fontweight="bold", fontsize=12)
     fig.tight_layout()
     return fig
+
+
+def plot_feature_importance(importances):
+    """Grouped permutation importance for each model, side by side, in one shared order.
+
+    importances: dict name -> table from grouped_permutation_importance.
+    """
+    order = pd.concat([t["Mean drop in ROC-AUC"] for t in importances.values()], axis=1)
+    order = order.mean(axis=1).sort_values().index          # smallest at the bottom
+    fig, axes = plt.subplots(1, len(importances), figsize=(11, 5.2), sharey=True, sharex=True)
+    for ax, (name, table), color in zip(np.atleast_1d(axes), importances.items(), [BLUE, ORANGE]):
+        table = table.loc[order]
+        y_pos = np.arange(len(table))
+        ax.barh(y_pos, table["Mean drop in ROC-AUC"], xerr=table["SD"], color=color, height=0.65,
+                error_kw=dict(ecolor=INK_2, elinewidth=1, capsize=2), zorder=3)
+        ax.set_yticks(y_pos, table.index, fontsize=9)
+        ax.axvline(0, color=AXIS, linewidth=0.8)
+        ax.grid(True, axis="x")
+        ax.grid(False, axis="y")
+        ax.set_title(name, fontsize=11)
+        ax.set_xlabel("Drop in ROC-AUC when the group is shuffled")
+    fig.suptitle("Feature importance on the test set (grouped permutation importance, 20 repeats, ± SD)",
+                 x=0.01, ha="left", fontweight="bold", fontsize=12)
+    fig.tight_layout()
+    return fig
