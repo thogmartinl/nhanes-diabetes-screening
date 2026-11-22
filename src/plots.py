@@ -158,3 +158,27 @@ def plot_correlation_matrix(df, min_label=0.3):
     ax.set_title("Correlations between the features and HbA1c, training set")
     return fig
 
+
+def plot_activity_transform(activity_log):
+    """Weekly physical activity before and after the log transform."""
+    after = activity_log.dropna()
+    before = np.expm1(after)                    # back to minutes per week
+    cut = before.quantile(0.99)
+    zero_share = (before == 0).mean()
+
+    fig, axes = plt.subplots(1, 2, figsize=(10, 4))
+    axes[0].hist(before.clip(upper=cut), bins=40, color=BLUE, edgecolor="white", linewidth=0.6)
+    axes[0].set_title(f"Before: minutes per week  ·  skewness {before.skew():.1f}", fontsize=11)
+    axes[0].set_xlabel(f"Minutes per week (values above {cut:,.0f} shown in the last bar)")
+    axes[0].set_ylabel("Participants")
+
+    axes[1].hist(after, bins=40, color=BLUE, edgecolor="white", linewidth=0.6)
+    axes[1].set_title(f"After: log(minutes + 1)  ·  skewness {after.skew():.1f}", fontsize=11)
+    axes[1].set_xlabel("log(minutes per week + 1)")
+    axes[1].text(0.98, 0.95, f"{zero_share:.0%} report no activity (value 0)",
+                 transform=axes[1].transAxes, ha="right", va="top", fontsize=9, color=INK_2)
+
+    fig.suptitle("Physical activity (moderate-equivalent minutes) before and after the log transform,"
+                 " training set", x=0.01, ha="left", fontweight="bold", fontsize=12)
+    fig.tight_layout()
+    return fig
