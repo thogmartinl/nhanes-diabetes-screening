@@ -1,4 +1,8 @@
-"""Model pipelines, tuning grids, and cross-validated tuning."""
+"""Model pipelines, tuning grids, cross-validated tuning, and saving/loading trained models."""
+
+import pickle
+
+import sklearn
 
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.model_selection import GridSearchCV, StratifiedKFold
@@ -57,3 +61,19 @@ def tune(pipeline, param_grid, X, y, random_state, scoring="roc_auc"):
     search = GridSearchCV(pipeline, param_grid, scoring=scoring, cv=cv, refit=True, n_jobs=-1)
     search.fit(X, y)
     return search
+
+
+def save_model(model, path, **info):
+    """Save a trained pipeline with the scikit-learn version and any extra info (e.g. CV score)."""
+    with open(path, "wb") as f:
+        pickle.dump({"model": model, "sklearn_version": sklearn.__version__, **info}, f)
+
+
+def load_model(path):
+    """Load a saved pipeline and warn if it was trained with a different scikit-learn version."""
+    with open(path, "rb") as f:
+        saved = pickle.load(f)
+    if saved["sklearn_version"] != sklearn.__version__:
+        print(f"Warning: {path} was trained with scikit-learn {saved['sklearn_version']}, "
+              f"but this session runs {sklearn.__version__}.")
+    return saved
