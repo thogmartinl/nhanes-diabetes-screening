@@ -61,6 +61,10 @@ def load_all(data_dir):
     for names in NHANES_FILES.values():
         for name in names:
             df = pd.read_sas(data_dir / f"{name}.xpt", format="xport")
+            # pandas reads some zeros in SAS transport files as tiny numbers
+            # (about 5.4e-79). Set them back to exactly 0.
+            num = df.select_dtypes("number").columns
+            df[num] = df[num].mask(df[num].abs() < 1e-10, 0)
             if not df["SEQN"].is_unique:
                 raise ValueError(f"{name} has more than one row per participant")
             tables[name] = df
