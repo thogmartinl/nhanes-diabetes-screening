@@ -5,6 +5,7 @@ from pathlib import Path
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
+from matplotlib.colors import LinearSegmentedColormap
 
 # Colorblind-safe palette (validated): blue, orange, aqua
 BLUE, ORANGE, AQUA = "#2a78d6", "#eb6834", "#1baf7a"
@@ -12,6 +13,21 @@ INK, INK_2, MUTED = "#0b0b0b", "#52514e", "#898781"
 GRID, AXIS = "#e1e0d9", "#c3c2b7"
 
 FIG_DIR = Path("/content/figures")
+
+# Readable names for the features, used in all plots
+FEATURE_LABELS = {
+    "age": "Age", "female": "Female", "income_ratio": "Income-to-poverty ratio",
+    "bmi": "BMI", "waist": "Waist circumference", "waist_height_ratio": "Waist-to-height ratio",
+    "systolic_bp": "Systolic BP", "diastolic_bp": "Diastolic BP", "told_high_bp": "Told high BP",
+    "cvd": "Cardiovascular disease", "activity_log": "Physical activity (log)",
+    "alcohol_freq": "Drinking frequency", "alcohol_drinks": "Drinks per drinking day",
+    "sleep_hours": "Sleep hours", "phq9": "PHQ-9 score", "insured": "Health insurance",
+    "health_rating": "Self-rated health (1 = excellent)", "hba1c": "HbA1c",
+}
+
+# Diverging scale for correlations: blue (negative) - gray (0) - red (positive)
+DIVERGING = LinearSegmentedColormap.from_list(
+    "diverging", ["#184f95", "#86b6ef", "#f0efec", "#f2a09f", "#b8302f"])
 
 
 def set_style():
@@ -107,3 +123,38 @@ def plot_elevated_by_group(age, bmi, elevated):
                  x=0.01, ha="left", fontweight="bold", fontsize=12)
     fig.tight_layout()
     return fig
+
+
+
+def plot_correlation_matrix(df, min_label=0.3):
+    """Lower-triangle Spearman correlation matrix; values shown where |r| >= min_label."""
+    corr = df.corr(method="spearman").iloc[1:, :-1]     # drop the empty first row / last column
+    n_rows, n_cols = corr.shape
+    mask = np.triu(np.ones((n_rows, n_cols), dtype=bool), k=1)
+    values = np.ma.masked_array(corr.values, mask)
+    cmap = DIVERGING.copy()
+    cmap.set_bad("white")
+
+    fig, ax = plt.subplots(figsize=(9, 8))
+    image = ax.imshow(values, cmap=cmap, vmin=-1, vmax=1)
+    ax.set_xticks(range(n_cols), [FEATURE_LABELS.get(c, c) for c in corr.columns],
+                  rotation=90, fontsize=8.5)
+    ax.set_yticks(range(n_rows), [FEATURE_LABELS.get(c, c) for c in corr.index], fontsize=8.5)
+    ax.grid(False)
+    for spine in ax.spines.values():
+        spine.set_visible(False)
+    ax.tick_params(length=0)
+
+    for i in range(n_rows):
+        for j in range(n_cols):
+            r = corr.iat[i, j]
+            if not mask[i, j] and abs(r) >= min_label:
+                ax.text(j, i, f"{r:.2f}", ha="center", va="center", fontsize=7,
+                        color="white" if abs(r) >= 0.6 else INK)
+
+    bar = fig.colorbar(image, ax=ax, shrink=0.6, pad=0.02)
+    bar.set_label(f"Spearman correlation (values shown where |r| ≥ {min_label})", color=INK_2)
+    bar.outline.set_visible(False)
+    ax.set_title("Correlations between the features and HbA1c, training set")
+    return fig
+
