@@ -16,7 +16,7 @@ NHANES_FILES = {
     "Laboratory": ["GHB_L", "GLU_L", "HDL_L", "INS_L", "TCHOL_L", "TRIGLY_L",
                    "FASTQX_L"],
     "Questionnaire": ["ALQ_L", "BPQ_L", "DBQ_L", "DIQ_L", "DPQ_L", "FNQ_L",
-                      "HIQ_L", "HSQ_L", "INQ_L", "MCQ_L", "PAQ_L", "RXQ_RX_L",
+                      "HIQ_L", "HUQ_L", "INQ_L", "MCQ_L", "PAQ_L", "RXQ_RX_L",
                       "SLQ_L", "SMQ_L", "WHQ_L"],
 }
 
