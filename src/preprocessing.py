@@ -35,8 +35,6 @@ def select_screening_sample(data):
     return screening, pd.DataFrame(flow, columns=["Step", "Participants"])
 
 
-
-
 # Refused / don't know codes for each raw variable used to build features.
 # Taken from the NHANES August 2021-August 2023 codebooks.
 # Variables not listed here (e.g. age, BMI, blood pressure, sleep hours) have no such codes.
@@ -109,7 +107,7 @@ def add_missing_indicators(X):
     return X
 
 
-def make_preprocessor(numeric_columns, scale=False):
+def make_preprocessor(numeric_columns, scale=False, categorical_columns=CATEGORICAL):
     """Impute missing values and one-hot encode the categorical features.
 
     Numeric features: median of the training data (optionally standardized,
@@ -125,5 +123,5 @@ def make_preprocessor(numeric_columns, scale=False):
     ])
     return ColumnTransformer([
         ("num", Pipeline(numeric_steps), numeric_columns),
-        ("cat", categorical, CATEGORICAL),
+        ("cat", categorical, list(categorical_columns)),
     ])
